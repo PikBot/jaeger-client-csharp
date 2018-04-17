@@ -17,4 +17,10 @@
     <ProjectReference Include="..\..\src\Jaeger.Core\Jaeger.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

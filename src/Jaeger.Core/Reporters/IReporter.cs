@@ -2,10 +2,12 @@ using System;
 
 namespace Jaeger.Core.Reporters
 {
-    // Used by the Tracer to submit spans when they are finished
+    /// <summary>
+    /// <see cref="IReporter"/> is the interface <see cref="Tracer"/> uses to report finished span to something that
+    /// collects those spans. Default implementation is remote reporter that sends spans out of process.
+    /// </summary>
     public interface IReporter : IDisposable
     {
-        // Report submits a finished span to be recorded - possibly asynchronously or buffered
-        void Report(IJaegerCoreSpan span);
+        void Report(Span span);
     }
 }

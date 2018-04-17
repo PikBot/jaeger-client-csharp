@@ -1,108 +1,145 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using Jaeger.Core.Samplers.HTTP;
+using Jaeger.Core.Util;
 using Microsoft.Extensions.Logging;
-using SamplerDictionary = System.Collections.Generic.Dictionary<string, Jaeger.Core.Samplers.IGuaranteedThroughputProbabilisticSampler>;
 
 namespace Jaeger.Core.Samplers
 {
-    // PerOperationSampler is a sampler that uses the name of the operation to
-    // maintain a specific GuaranteedThroughputProbabilisticSampler instance
-    // for each operation
-    public class PerOperationSampler : ISampler
+    /// <summary>
+    /// Computes <see cref="Sample"/> using the name of the operation, and maintains a specific
+    /// <see cref="GuaranteedThroughputSampler"/> instance for each operation.
+    /// </summary>
+    public class PerOperationSampler : ValueObject, ISampler
     {
-        private readonly int _maxOperations;
-        private readonly double _samplingRate;
-        private double _lowerBound;
+        private readonly object _lock = new object();
+
         private readonly ILogger<PerOperationSampler> _logger;
-        private readonly ISamplerFactory _factory;
-        private readonly SamplerDictionary _samplers = new SamplerDictionary();
-        private ISampler _defaultSampler;
+        private readonly int _maxOperations;
+        internal Dictionary<string, GuaranteedThroughputSampler> OperationNameToSampler { get; }
+        internal ProbabilisticSampler DefaultSampler { get; private set; }
 
-        public PerOperationSampler(int maxOperations, double samplingRate, double lowerBound, ILoggerFactory loggerFactory)
-            : this(maxOperations, samplingRate, lowerBound, loggerFactory, new SamplerFactory())
-        {}
+        internal double LowerBound { get; private set; }
 
-        internal PerOperationSampler(int maxOperations, double samplingRate, double lowerBound, ILoggerFactory loggerFactory, ISamplerFactory samplerFactory)
+
+        public PerOperationSampler(int maxOperations, OperationSamplingParameters strategies, ILoggerFactory loggerFactory)
+            : this(maxOperations,
+                new Dictionary<string, GuaranteedThroughputSampler>(),
+                new ProbabilisticSampler(strategies.DefaultSamplingProbability),
+                strategies.DefaultLowerBoundTracesPerSecond,
+                loggerFactory)
+        {
+            Update(strategies);
+        }
+
+        internal PerOperationSampler(
+            int maxOperations,
+            Dictionary<string, GuaranteedThroughputSampler> samplers,
+            ProbabilisticSampler probabilisticSampler,
+            double lowerBound,
+            ILoggerFactory loggerFactory)
         {
             _maxOperations = maxOperations;
-            _samplingRate = samplingRate;
-            _lowerBound = lowerBound;
+            OperationNameToSampler = samplers ?? new Dictionary<string, GuaranteedThroughputSampler>();
+            DefaultSampler = probabilisticSampler ?? throw new ArgumentNullException(nameof(probabilisticSampler));
+            LowerBound = lowerBound;
             _logger = loggerFactory?.CreateLogger<PerOperationSampler>() ?? throw new ArgumentNullException(nameof(loggerFactory));
-            _factory = samplerFactory ?? throw new ArgumentNullException(nameof(samplerFactory));
-            _defaultSampler = _factory.NewProbabilisticSampler(_samplingRate);
+        }
+
+        /// <summary>
+        /// Updates the <see cref="GuaranteedThroughputSampler"/> for each operation.
+        /// </summary>
+        /// <param name="strategies">The parameters for operation sampling.</param>
+        /// <returns><c>true</c>, if any samplers were updated.</returns>
+        public virtual bool Update(OperationSamplingParameters strategies)
+        {
+            lock (_lock)
+            {
+                var isUpdated = false;
+
+                LowerBound = strategies.DefaultLowerBoundTracesPerSecond;
+                ProbabilisticSampler defaultSampler = new ProbabilisticSampler(strategies.DefaultSamplingProbability);
+
+                if (!defaultSampler.Equals(DefaultSampler))
+                {
+                    DefaultSampler.Dispose();
+                    DefaultSampler = defaultSampler;
+                    isUpdated = true;
+                }
+
+                foreach (var strategy in strategies.PerOperationStrategies)
+                {
+                    var operation = strategy.Operation;
+                    var samplingRate = strategy.ProbabilisticSampling.SamplingRate;
+                    if (OperationNameToSampler.TryGetValue(operation, out var sampler))
+                    {
+                        isUpdated = sampler.Update(samplingRate, LowerBound) || isUpdated;
+                    }
+                    else
+                    {
+                        if (OperationNameToSampler.Count < _maxOperations)
+                        {
+                            sampler = new GuaranteedThroughputSampler(samplingRate, LowerBound);
+                            OperationNameToSampler[operation] = sampler;
+                            isUpdated = true;
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Exceeded the maximum number of operations {maxOperations} for per operations sampling", _maxOperations);
+                        }
+                    }
+                }
+
+                return isUpdated;
+            }
+        }
+
+        public SamplingStatus Sample(string operation, TraceId id)
+        {
+            lock (_lock)
+            {
+                if (OperationNameToSampler.TryGetValue(operation, out var sampler))
+                {
+                    return sampler.Sample(operation, id);
+                }
+
+                if (OperationNameToSampler.Count < _maxOperations)
+                {
+                    var newSampler = new GuaranteedThroughputSampler(DefaultSampler.SamplingRate, LowerBound);
+                    OperationNameToSampler[operation] = newSampler;
+                    return newSampler.Sample(operation, id);
+                }
+
+                return DefaultSampler.Sample(operation, id);
+            }
+        }
+
+        public override string ToString()
+        {
+            lock (_lock)
+            {
+                return $"{nameof(PerOperationSampler)}({LowerBound}/{_maxOperations})";
+            }
         }
 
         public void Dispose()
         {
-            foreach(var samplerKV in _samplers)
+            lock (_lock)
             {
-                samplerKV.Value.Dispose();
-            }
-            _defaultSampler.Dispose();
-        }
-
-        /// <summary>
-        /// Updates the GuaranteedThroughputSampler for each operation.
-        /// </summary>
-        /// <param name="strategies">The parameters for operation sampling</param>
-        /// <returns>true, iff any samplers were updated</returns>
-        [MethodImpl(MethodImplOptions.Synchronized)]
-        public bool Update(PerOperationSamplingStrategies strategies)
-        {
-            var isUpdated = false;
-
-            _lowerBound = strategies.DefaultLowerBoundTracesPerSecond;
-
-            var defaultSampler = _factory.NewProbabilisticSampler(strategies.DefaultSamplingProbability);
-            if (!defaultSampler.Equals(_defaultSampler))
-            {
-                _defaultSampler = defaultSampler;
-                isUpdated = true;
-            }
-
-            foreach (var strategy in strategies.PerOperationStrategies)
-            {
-                var operation = strategy.Operation;
-                var samplingRate = strategy.ProbabilisticSampling.SamplingRate;
-                if (_samplers.TryGetValue(operation, out var sampler))
+                DefaultSampler.Dispose();
+                foreach (var sampler in OperationNameToSampler.Values)
                 {
-                    isUpdated = sampler.Update(samplingRate, _lowerBound) || isUpdated;
-                }
-                else
-                {
-                    if (_samplers.Count < _maxOperations)
-                    {
-                        sampler = (IGuaranteedThroughputProbabilisticSampler)_factory.NewGuaranteedThroughputProbabilisticSampler(samplingRate, _lowerBound);
-                        _samplers.Add(operation, sampler);
-                        isUpdated = true;
-                    }
-                    else
-                    {
-                        _logger.LogInformation($"Exceeded the maximum number of operations ({_maxOperations}) for per operations sampling");
-                    }
+                    sampler.Dispose();
                 }
             }
-
-            return isUpdated;
         }
 
-        public (bool Sampled, Dictionary<string, object> Tags) IsSampled(TraceId id, string operation)
+        protected override IEnumerable<object> GetAtomicValues()
         {
-            var operationKey = operation.ToLower();
-
-            if (_samplers.TryGetValue(operationKey, out var sampler)) {
-                return sampler.IsSampled(id, operation);
-            }
-
-            if (_samplers.Count >= _maxOperations) {
-                return _defaultSampler.IsSampled(id, operation);
-            }
-
-            var newSampler = (IGuaranteedThroughputProbabilisticSampler)_factory.NewGuaranteedThroughputProbabilisticSampler(_samplingRate, _lowerBound);
-            _samplers[operationKey] = newSampler;
-            return newSampler.IsSampled(id, operation);
+            yield return DefaultSampler;
+            yield return LowerBound;
+            yield return _maxOperations;
+            yield return OperationNameToSampler;
         }
     }
 }

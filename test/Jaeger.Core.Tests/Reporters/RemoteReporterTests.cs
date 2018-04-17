@@ -1,127 +1,235 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using Jaeger.Core.Exceptions;
 using Jaeger.Core.Metrics;
 using Jaeger.Core.Reporters;
-using Jaeger.Core.Transport;
-using Microsoft.Extensions.Logging;
-using NSubstitute;
-using NSubstitute.ExceptionExtensions;
+using Jaeger.Core.Samplers;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
+using ThriftSpan = Jaeger.Thrift.Span;
 
 namespace Jaeger.Core.Tests.Reporters
 {
     public class RemoteReporterTests
     {
-        [Fact]
-        public void RemoteReporter_Constructor_ShouldThrowWhenTransportIsNull()
+        private const int MaxQueueSize = 500;
+        private readonly TimeSpan _flushInterval = TimeSpan.FromSeconds(1);
+
+        private IReporter _reporter;
+        private Tracer _tracer;
+        private InMemorySender _sender;
+        private readonly IMetrics _metrics;
+        private readonly InMemoryMetricsFactory _metricsFactory;
+
+        public RemoteReporterTests()
         {
-            var ex = Assert.Throws<ArgumentNullException>(() => new RemoteReporter.Builder(null).Build());
-            Assert.Equal("transport", ex.ParamName);
+            _metricsFactory = new InMemoryMetricsFactory();
+            _metrics = new MetricsImpl(_metricsFactory);
+
+            _sender = new InMemorySender();
+            _reporter = new RemoteReporter.Builder()
+                .WithSender(_sender)
+                .WithFlushInterval(_flushInterval)
+                .WithMaxQueueSize(MaxQueueSize)
+                .WithMetrics(_metrics)
+                .Build();
+            _tracer = new Tracer.Builder("test-remote-reporter")
+                .WithReporter(_reporter)
+                .WithSampler(new ConstSampler(true))
+                .WithMetrics(_metrics)
+                .Build();
         }
 
         [Fact]
-        public void RemoteReporter_ShouldCallTransport()
+        public void TestRemoteReporterReport()
         {
-            var transport = Substitute.For<ITransport>();
-            var span = Substitute.For<IJaegerCoreSpan>();
+            Span span = (Span)_tracer.BuildSpan("raza").Start();
+            _reporter.Report(span);
 
-            using (var reporter = new RemoteReporter.Builder(transport).Build())
+            // do sleep until automatic flush happens on 'reporter'
+            // added 20ms on top of 'flushInterval' to avoid corner cases
+            double timeout = _flushInterval.Add(TimeSpan.FromMilliseconds(20)).TotalMilliseconds;
+            Stopwatch timer = Stopwatch.StartNew();
+            while (_sender.GetReceived().Count == 0 && timer.ElapsedMilliseconds < timeout)
             {
-                reporter.Report(span);
-                transport.Received(1).AppendAsync(span, Arg.Any<CancellationToken>());
+                Thread.Sleep(1);
             }
-            transport.Received(1).CloseAsync(Arg.Any<CancellationToken>());
+
+            List<ThriftSpan> received = _sender.GetReceived();
+
+            Assert.Single(received);
         }
 
         [Fact]
-        public void RemoteReporter_ShouldCallLogger()
+        public void TestRemoteReporterFlushesOnDispose()
         {
-            var transport = Substitute.For<ITransport>();
-            var loggerFactory = Substitute.For<ILoggerFactory>();
-            var logger = Substitute.For<ILogger>();
-
-            loggerFactory.CreateLogger<RemoteReporter>().Returns(logger);
-
-            using (new RemoteReporter.Builder(transport).WithLoggerFactory(loggerFactory).Build())
+            int numberOfSpans = 100;
+            for (int i = 0; i < numberOfSpans; i++)
             {
-                loggerFactory.Received(1).CreateLogger<RemoteReporter>();
+                Span span = (Span)_tracer.BuildSpan("raza").Start();
+                _reporter.Report(span);
             }
+            _reporter.Dispose();
+
+            Assert.Empty(_sender.GetAppended());
+            Assert.Equal(numberOfSpans, _sender.GetFlushed().Count);
+
+            Assert.Equal(100, _metricsFactory.GetCounter("jaeger:started_spans", "sampled=y"));
+            Assert.Equal(100, _metricsFactory.GetCounter("jaeger:reporter_spans", "result=ok"));
+            Assert.Equal(100, _metricsFactory.GetCounter("jaeger:traces", "sampled=y,state=started"));
+        }
+
+        // Starts a number of threads. Each can fill the queue on its own, so they will exceed its
+        // capacity many times over
+        [Fact]
+        public void TestReportDoesntThrowWhenQueueFull()
+        {
+            ConcurrentBag<Exception> exceptions = new ConcurrentBag<Exception>();
+
+            int threadsCount = 10;
+            Barrier barrier = new Barrier(threadsCount);
+            List<Task> tasks = new List<Task>();
+            for (int i = 0; i < threadsCount; i++)
+            {
+                Task t = CreateSpanReportingTask(exceptions, barrier);
+                tasks.Add(t);
+            }
+
+            Task.WaitAll(tasks.ToArray());
+
+            Assert.Empty(exceptions);
+        }
+
+        private Task CreateSpanReportingTask(ConcurrentBag<Exception> exceptions, Barrier barrier)
+        {
+            return Task.Factory.StartNew(() =>
+            {
+                for (int x = 0; x < MaxQueueSize; x++)
+                {
+                    try
+                    {
+                        barrier.SignalAndWait();
+                        _reporter.Report(NewSpan());
+                    }
+                    catch (Exception ex)
+                    {
+                        exceptions.Add(ex);
+                    }
+                }
+            });
         }
 
         [Fact]
-        public void RemoteReporter_ShouldCallMetrics()
+        public void TestAppendWhenQueueFull()
         {
-            var transport = Substitute.For<ITransport>();
-            var span = Substitute.For<IJaegerCoreSpan>();
-            var metrics = InMemoryMetricsFactory.Instance.CreateMetrics();
+            // change sender to blocking mode
+            _sender.BlockAppend();
 
-            transport.CloseAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(2));
-
-            using (var reporter = new RemoteReporter.Builder(transport).WithMetrics(metrics).Build())
+            for (int i = 0; i < MaxQueueSize; i++)
             {
-                reporter.Report(span);
-                reporter.Report(span);
-
-                transport.Received(2).AppendAsync(span, Arg.Any<CancellationToken>());
+                _reporter.Report(NewSpan());
             }
-            transport.Received(1).CloseAsync(Arg.Any<CancellationToken>());
-            Assert.Equal(2, metrics.ReporterSuccess.Count);
+
+            // When: at this point the queue is full or there is one slot empty (if the worker thread has
+            // already picked up some command). We add two spans to make sure that we overfill the queue
+            _reporter.Report(NewSpan());
+            _reporter.Report(NewSpan());
+
+            // Then: one or both spans should be dropped
+            long droppedCount = _metricsFactory.GetCounter("jaeger:reporter_spans", "result=dropped");
+            Assert.InRange(droppedCount, 1, 2);
         }
 
         [Fact]
-        public void RemoteReporter_ShouldCallMetricsFactory()
+        public void TestCloseWhenQueueFull()
         {
-            var transport = Substitute.For<ITransport>();
-            var metricsFactory = InMemoryMetricsFactory.Instance;
+            _reporter = new RemoteReporter(_sender, TimeSpan.FromHours(1), MaxQueueSize, _metrics, NullLoggerFactory.Instance);
+            _tracer = new Tracer.Builder("test-remote-reporter")
+                .WithReporter(_reporter)
+                .WithSampler(new ConstSampler(true))
+                .WithMetrics(_metrics)
+                .Build();
 
-            using (var reporter = new RemoteReporter.Builder(transport).WithMetricsFactory(metricsFactory).Build())
+            // change sender to blocking mode
+            _sender.BlockAppend();
+
+            // fill the queue
+            for (int i = 0; i < MaxQueueSize + 10; i++)
             {
-                Assert.IsType<InMemoryMetricsFactory.InMemoryElement>(reporter._metrics.ReporterSuccess);
+                _reporter.Report(NewSpan());
             }
+
+            _reporter.Dispose();
+
+            // expect no exception thrown
         }
 
         [Fact]
-        public void RemoteReporter_ShouldCountReporterDropped()
+        public void TestFlushWhenQueueFull()
         {
-            var transport = Substitute.For<ITransport>();
-            var span = Substitute.For<IJaegerCoreSpan>();
-            var metrics = InMemoryMetricsFactory.Instance.CreateMetrics();
+            // change sender to blocking mode
+            _sender.BlockAppend();
 
-            transport.AppendAsync(span, Arg.Any<CancellationToken>()).Throws(new SenderException(String.Empty, 1));
-
-            using (var reporter = new RemoteReporter.Builder(transport).WithMetrics(metrics).Build())
+            // fill the queue
+            for (int i = 0; i < MaxQueueSize + 10; i++)
             {
-                reporter.Report(span);
-
-                transport.Received(1).AppendAsync(span, Arg.Any<CancellationToken>());
+                _reporter.Report(NewSpan());
             }
-            transport.Received(1).CloseAsync(Arg.Any<CancellationToken>());
-            Assert.Equal(0, metrics.ReporterSuccess.Count);
-            Assert.Equal(1, metrics.ReporterDropped.Count);
-            Assert.Equal(0, metrics.ReporterFailure.Count);
+
+            ((RemoteReporter)_reporter).Flush();
+
+            // expect no exception thrown
         }
 
         [Fact]
-        public void RemoteReporter_ShouldCountReporterFailure()
+        public void TestFlushUpdatesQueueLength()
         {
-            var transport = Substitute.For<ITransport>();
-            var span = Substitute.For<IJaegerCoreSpan>();
-            var metrics = InMemoryMetricsFactory.Instance.CreateMetrics();
+            TimeSpan neverFlushInterval = TimeSpan.FromHours(1);
+            _reporter = new RemoteReporter(_sender, neverFlushInterval, MaxQueueSize, _metrics, NullLoggerFactory.Instance);
+            _tracer = new Tracer.Builder("test-remote-reporter")
+                .WithReporter(_reporter)
+                .WithSampler(new ConstSampler(true))
+                .WithMetrics(_metrics)
+                .Build();
 
-            transport.CloseAsync(Arg.Any<CancellationToken>()).Throws(new SenderException(String.Empty, 1));
+            // change sender to blocking mode
+            _sender.BlockAppend();
 
-            using (var reporter = new RemoteReporter.Builder(transport).WithMetrics(metrics).Build())
+            for (int i = 0; i < 3; i++)
             {
-                reporter.Report(span);
-
-                transport.Received(1).AppendAsync(span, Arg.Any<CancellationToken>());
+                _reporter.Report(NewSpan());
             }
-            transport.Received(1).CloseAsync(Arg.Any<CancellationToken>());
-            Assert.Equal(0, metrics.ReporterSuccess.Count);
-            Assert.Equal(0, metrics.ReporterDropped.Count);
-            Assert.Equal(1, metrics.ReporterFailure.Count);
+
+            Assert.Equal(0, _metricsFactory.GetGauge("jaeger:reporter_queue_length", ""));
+
+            RemoteReporter remoteReporter = (RemoteReporter)_reporter;
+            remoteReporter.Flush();
+
+            Assert.True(_metricsFactory.GetGauge("jaeger:reporter_queue_length", "") > 0);
+        }
+
+        [Fact]
+        public void TestFlushIsCalledOnSender()
+        {
+            _tracer.BuildSpan("mySpan").Start().Finish();
+
+            // do sleep until automatic flush happens on 'reporter'
+            double timeout = _flushInterval.Add(TimeSpan.FromMilliseconds(20)).TotalMilliseconds;
+            Stopwatch timer = Stopwatch.StartNew();
+            while (_sender.FlushCallCount == 0 && timer.ElapsedMilliseconds < timeout)
+            {
+                Thread.Sleep(1);
+            }
+
+            Assert.True(_sender.FlushCallCount > 0);
+        }
+
+        private Span NewSpan()
+        {
+            return (Span)_tracer.BuildSpan("x").Start();
         }
     }
 }
