@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Jaeger.Core.Exceptions;
 using Jaeger.Core.Reporters.Protocols;
 using Jaeger.Thrift.Senders;
-using Thrift.Protocols;
 using ThriftProcess = Jaeger.Thrift.Process;
 using ThriftSpan = Jaeger.Thrift.Span;
 

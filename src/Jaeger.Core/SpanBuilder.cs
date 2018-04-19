@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using Jaeger.Core.Metrics;
-using Jaeger.Core.Samplers;
 using OpenTracing;
 using OpenTracing.Tag;
 

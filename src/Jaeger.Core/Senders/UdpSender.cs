@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Jaeger.Core.Exceptions;
 using Jaeger.Thrift.Agent;
 using Jaeger.Thrift.Senders.Internal;
-using Thrift.Protocols;
 using ThriftBatch = Jaeger.Thrift.Batch;
 using ThriftProcess = Jaeger.Thrift.Process;
 using ThriftSpan = Jaeger.Thrift.Span;

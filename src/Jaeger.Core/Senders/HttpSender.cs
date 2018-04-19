@@ -1,13 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Jaeger.Core.Exceptions;
 using Jaeger.Thrift.Agent;
-using Thrift.Protocols;
 using Thrift.Transports.Client;
 using ThriftBatch = Jaeger.Thrift.Batch;
 using ThriftProcess = Jaeger.Thrift.Process;

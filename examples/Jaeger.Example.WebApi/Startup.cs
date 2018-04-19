@@ -1,5 +1,4 @@
 ﻿using Jaeger.Core;
-using Jaeger.Core.Reporters;
 using Jaeger.Core.Samplers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;

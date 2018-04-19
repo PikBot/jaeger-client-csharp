@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using Jaeger.Core.Propagation;
 using Microsoft.Extensions.Logging;
-using OpenTracing;
 using OpenTracing.Propagation;
 
 namespace Jaeger.Core

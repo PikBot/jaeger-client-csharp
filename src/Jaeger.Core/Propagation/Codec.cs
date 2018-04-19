@@ -1,5 +1,3 @@
-using System;
-
 namespace Jaeger.Core.Propagation
 {
     public abstract class Codec<TCarrier> : ICodec
