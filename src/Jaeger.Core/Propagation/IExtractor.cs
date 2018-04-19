@@ -13,7 +13,7 @@ namespace Jaeger.Core.Propagation
     public interface IExtractor
     {
         /// <summary>
-        /// Called when <see cref="ITracer.Extract"/> is used. It should handle the logic behind extracting propagation-scheme
+        /// Called when <see cref="ITracer.Extract{TCarrier}"/> is used. It should handle the logic behind extracting propagation-scheme
         /// specific information from carrier (e.g. http request headers, amqp message headers, etc.).
         /// <para/>
         /// This method must not modify the carrier.

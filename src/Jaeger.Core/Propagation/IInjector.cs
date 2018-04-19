@@ -13,7 +13,7 @@ namespace Jaeger.Core.Propagation
     public interface IInjector
     {
         /// <summary>
-        /// Called when <see cref="ITracer.Inject"/> is used. It should handle the logic behind injecting propagation scheme
+        /// Called when <see cref="ITracer.Inject{TCarrier}"/> is used. It should handle the logic behind injecting propagation scheme
         /// specific information into the carrier (e.g. http request headers, amqp message headers,
         /// etc.).
         /// <para/>
