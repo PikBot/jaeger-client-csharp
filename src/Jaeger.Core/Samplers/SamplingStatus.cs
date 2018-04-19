@@ -18,7 +18,10 @@ namespace Jaeger.Core.Samplers
         protected override IEnumerable<object> GetAtomicValues()
         {
             yield return IsSampled;
-            yield return Tags;
+            foreach (var tag in Tags)
+            {
+                yield return tag;
+            }
         }
     }
 }
