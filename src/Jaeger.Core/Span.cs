@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Tag;
@@ -9,13 +8,13 @@ namespace Jaeger.Core
 {
     public class Span : ISpan
     {
-        private static readonly ReadOnlyCollection<LogData> EmptyLogs = new List<LogData>().AsReadOnly();
-        private static readonly ReadOnlyCollection<Reference> EmptyReferences = new List<Reference>().AsReadOnly();
+        private static readonly IReadOnlyList<LogData> EmptyLogs = new List<LogData>().AsReadOnly();
+        private static readonly IReadOnlyList<Reference> EmptyReferences = new List<Reference>().AsReadOnly();
 
         private readonly object _lock = new object();
 
         private readonly Dictionary<string, object> _tags;
-        private readonly ReadOnlyCollection<Reference> _references;
+        private readonly IReadOnlyList<Reference> _references;
 
         // We don't allocate if there's no logs.
         private List<LogData> _logs;
@@ -37,13 +36,13 @@ namespace Jaeger.Core
             SpanContext context,
             DateTime? startTimestampUtc,
             Dictionary<string, object> tags,
-            List<Reference> references)
+            IReadOnlyList<Reference> references)
         {
             Tracer = tracer ?? throw new ArgumentNullException(nameof(tracer));
             OperationName = operationName;
             Context = context ?? throw new ArgumentNullException(nameof(context));
             StartTimestampUtc = startTimestampUtc ?? Tracer.Clock.UtcNow();
-            _references = references != null ? references.AsReadOnly() : EmptyReferences;
+            _references = references ?? EmptyReferences;
 
             _tags = new Dictionary<string, object>();
             foreach (var tag in tags)
@@ -52,9 +51,9 @@ namespace Jaeger.Core
             }
         }
 
-        public ReadOnlyCollection<Reference> GetReferences() => _references;
+        public IReadOnlyList<Reference> GetReferences() => _references;
 
-        public ReadOnlyDictionary<string, object> GetTags() => new ReadOnlyDictionary<string, object>(_tags);
+        public IReadOnlyDictionary<string, object> GetTags() => _tags;
 
         public ISpan SetOperationName(string operationName)
         {
@@ -70,7 +69,7 @@ namespace Jaeger.Core
             return Tracer.ServiceName;
         }
 
-        public ReadOnlyCollection<LogData> GetLogs() => _logs != null ? _logs.AsReadOnly() : EmptyLogs;
+        public IReadOnlyList<LogData> GetLogs() => _logs ?? EmptyLogs;
 
         public ISpan SetBaggageItem(string key, string value)
         {

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 namespace Jaeger.Core.Metrics
 {
@@ -17,7 +16,7 @@ namespace Jaeger.Core.Metrics
         public MetricAttribute(string name)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
-            Tags = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>());
+            Tags = new Dictionary<string, string>();
         }
 
         public MetricAttribute(string name, string tags)
@@ -26,7 +25,7 @@ namespace Jaeger.Core.Metrics
             Tags = ParseTags(tags);
         }
 
-        private static ReadOnlyDictionary<string, string> ParseTags(string tags)
+        private static IReadOnlyDictionary<string, string> ParseTags(string tags)
         {
             string[] entries = tags.Split(',');
 
@@ -44,7 +43,7 @@ namespace Jaeger.Core.Metrics
                 }
             }
 
-            return new ReadOnlyDictionary<string, string>(tagsAsDict);
+            return tagsAsDict;
         }
     }
 }

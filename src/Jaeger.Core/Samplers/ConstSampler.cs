@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Jaeger.Core.Util;
 
 namespace Jaeger.Core.Samplers
@@ -14,10 +13,10 @@ namespace Jaeger.Core.Samplers
         public ConstSampler(bool sample)
         {
             _decision = sample;
-            _tags = new ReadOnlyDictionary<string, object>(new Dictionary<string, object> {
+            _tags = new Dictionary<string, object> {
                 { Constants.SamplerTypeTagKey, Type },
                 { Constants.SamplerParamTagKey, sample }
-            });
+            };
         }
 
         public SamplingStatus Sample(string operation, TraceId id)

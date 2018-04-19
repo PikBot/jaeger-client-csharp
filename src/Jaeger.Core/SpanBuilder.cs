@@ -167,7 +167,7 @@ namespace Jaeger.Core
             return new SpanContext(traceId, spanId, new SpanId(0), flags);
         }
 
-        private ReadOnlyDictionary<string, string> CreateChildBaggage()
+        private IReadOnlyDictionary<string, string> CreateChildBaggage()
         {
             Dictionary<string, string> baggage = null;
 
@@ -192,7 +192,7 @@ namespace Jaeger.Core
                 }
             }
 
-            return baggage != null ? new ReadOnlyDictionary<string, string>(baggage) : SpanContext.EmptyBaggage;
+            return baggage ?? SpanContext.EmptyBaggage;
         }
 
         private SpanContext CreateChildContext()

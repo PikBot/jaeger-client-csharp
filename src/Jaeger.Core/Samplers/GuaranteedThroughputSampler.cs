@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Jaeger.Core.Util;
 
 namespace Jaeger.Core.Samplers
@@ -22,10 +21,10 @@ namespace Jaeger.Core.Samplers
 
         public GuaranteedThroughputSampler(double samplingRate, double lowerBound)
         {
-            _tags = new ReadOnlyDictionary<string, object>(new Dictionary<string, object> {
+            _tags = new Dictionary<string, object> {
                 { Constants.SamplerTypeTagKey, Type },
                 { Constants.SamplerParamTagKey, samplingRate }
-            });
+            };
 
             _probabilisticSampler = new ProbabilisticSampler(samplingRate);
             _lowerBoundSampler = new RateLimitingSampler(lowerBound);
@@ -54,7 +53,7 @@ namespace Jaeger.Core.Samplers
                     }
                     newTags[Constants.SamplerParamTagKey] = samplingRate;
 
-                    _tags = new ReadOnlyDictionary<string, object>(newTags);
+                    _tags = newTags;
                     isUpdated = true;
                 }
                 if (lowerBound != _lowerBoundSampler.MaxTracesPerSecond)

@@ -52,7 +52,7 @@ namespace Jaeger.Core.Reporters.Protocols
             };
         }
 
-        internal static List<ThriftReference> BuildReferences(ReadOnlyCollection<Reference> references)
+        internal static List<ThriftReference> BuildReferences(IReadOnlyList<Reference> references)
         {
             List<ThriftReference> thriftReferences = new List<ThriftReference>(references.Count);
             foreach (var reference in references)
@@ -71,7 +71,7 @@ namespace Jaeger.Core.Reporters.Protocols
             return thriftReferences;
         }
 
-        private static List<ThriftLog> BuildLogs(ReadOnlyCollection<LogData> logs)
+        private static List<ThriftLog> BuildLogs(IEnumerable<LogData> logs)
         {
             List<ThriftLog> thriftLogs = new List<ThriftLog>();
             if (logs != null)
@@ -99,7 +99,7 @@ namespace Jaeger.Core.Reporters.Protocols
             return thriftLogs;
         }
 
-        internal static List<ThriftTag> BuildTags(IDictionary<string, object> tags)
+        internal static List<ThriftTag> BuildTags(IEnumerable<KeyValuePair<string, object>> tags)
         {
             var thriftTags = new List<ThriftTag>();
             if (tags != null)

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Jaeger.Core.Util;
 
 namespace Jaeger.Core.Samplers
@@ -34,10 +33,10 @@ namespace Jaeger.Core.Samplers
                 _negativeSamplingBoundary = (long)((1L << 63) * samplingRate);
             }
 
-            _tags = new ReadOnlyDictionary<string, object>(new Dictionary<string, object> {
+            _tags = new Dictionary<string, object> {
                 { Constants.SamplerTypeTagKey, Type },
                 { Constants.SamplerParamTagKey, samplingRate }
-            });
+            };
         }
 
         public virtual SamplingStatus Sample(string operation, TraceId id)

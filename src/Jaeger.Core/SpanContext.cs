@@ -8,13 +8,13 @@ namespace Jaeger.Core
 {
     public class SpanContext : ISpanContext
     {
-        internal static readonly ReadOnlyDictionary<string, string> EmptyBaggage = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>());
+        internal static readonly IReadOnlyDictionary<string, string> EmptyBaggage = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>());
 
         public TraceId TraceId { get; }
         public SpanId SpanId { get; }
         public SpanId ParentId { get; }
         public SpanContextFlags Flags { get; }
-        internal ReadOnlyDictionary<string, string> Baggage { get; }
+        internal IReadOnlyDictionary<string, string> Baggage { get; }
         internal string DebugId { get; }
 
         public bool IsSampled => Flags.HasFlag(SpanContextFlags.Sampled);
@@ -31,7 +31,7 @@ namespace Jaeger.Core
             SpanId spanId,
             SpanId parentId,
             SpanContextFlags flags,
-            ReadOnlyDictionary<string, string> baggage,
+            IReadOnlyDictionary<string, string> baggage,
             string debugId)
         {
             TraceId = traceId;
@@ -80,7 +80,12 @@ namespace Jaeger.Core
 
         public SpanContext WithBaggageItem(string key, string value)
         {
-            var newBaggage = new Dictionary<string, string>(Baggage);
+            var newBaggage = new Dictionary<string, string>();
+            foreach (var oldBaggageItem in Baggage)
+            {
+                newBaggage[oldBaggageItem.Key] = oldBaggageItem.Value;
+            }
+
             if (value == null)
             {
                 newBaggage.Remove(key);
@@ -89,12 +94,12 @@ namespace Jaeger.Core
             {
                 newBaggage[key] = value;
             }
-            return new SpanContext(TraceId, SpanId, ParentId, Flags, new ReadOnlyDictionary<string, string>(newBaggage), DebugId);
+            return new SpanContext(TraceId, SpanId, ParentId, Flags, newBaggage, DebugId);
         }
 
         public SpanContext WithBaggage(Dictionary<string, string> newBaggage)
         {
-            return new SpanContext(TraceId, SpanId, ParentId, Flags, new ReadOnlyDictionary<string, string>(newBaggage), DebugId);
+            return new SpanContext(TraceId, SpanId, ParentId, Flags, newBaggage, DebugId);
         }
 
         public SpanContext WithFlags(SpanContextFlags flags)

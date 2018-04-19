@@ -34,7 +34,7 @@ namespace Jaeger.Core
         public IScopeManager ScopeManager { get; }
         public ISpan ActiveSpan => ScopeManager.Active?.Span;
 
-        public ReadOnlyDictionary<string, object> Tags { get; }
+        public IReadOnlyDictionary<string, object> Tags { get; }
 
         public string Version { get; }
         public bool ZipkinSharedRpcSpan { get; }
@@ -103,7 +103,7 @@ namespace Jaeger.Core
                 }
             }
 
-            Tags = new ReadOnlyDictionary<string, object>(tags);
+            Tags = tags;
         }
 
         public void ReportSpan(Span span)

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Jaeger.Core.Util;
 
 namespace Jaeger.Core.Samplers
@@ -25,10 +24,10 @@ namespace Jaeger.Core.Samplers
             MaxTracesPerSecond = maxTracesPerSecond;
             _rateLimiter = new RateLimiter(maxTracesPerSecond, Math.Max(maxTracesPerSecond, 1.0));
 
-            _tags = new ReadOnlyDictionary<string, object>(new Dictionary<string, object> {
+            _tags = new Dictionary<string, object> {
                 { Constants.SamplerTypeTagKey, Type },
                 { Constants.SamplerParamTagKey, maxTracesPerSecond }
-            });
+            };
         }
 
         public SamplingStatus Sample(string operation, TraceId id)
