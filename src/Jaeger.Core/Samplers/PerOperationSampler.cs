@@ -51,7 +51,7 @@ namespace Jaeger.Core.Samplers
         /// </summary>
         /// <param name="strategies">The parameters for operation sampling.</param>
         /// <returns><c>true</c>, if any samplers were updated.</returns>
-        public virtual bool Update(OperationSamplingParameters strategies)
+        public bool Update(OperationSamplingParameters strategies)
         {
             lock (_lock)
             {
@@ -139,7 +139,10 @@ namespace Jaeger.Core.Samplers
             yield return DefaultSampler;
             yield return LowerBound;
             yield return _maxOperations;
-            yield return OperationNameToSampler;
+            foreach (var kvp in OperationNameToSampler)
+            {
+                yield return kvp;
+            }
         }
     }
 }
