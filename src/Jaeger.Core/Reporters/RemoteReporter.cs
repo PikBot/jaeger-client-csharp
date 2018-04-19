@@ -44,7 +44,7 @@ namespace Jaeger.Core.Reporters
             bool added = false;
             try
             {
-                // Its better to drop spans, than to block here
+                // It's better to drop spans, than to block here
                 added = _commandQueue.TryAdd(new AppendCommand(this, span));
             }
             catch (InvalidOperationException)
@@ -139,9 +139,9 @@ namespace Jaeger.Core.Reporters
         }
 
         /*
-         * The code below implements the command pattern.  This pattern is useful for
+         * The code below implements the command pattern. This pattern is useful for
          * situations where multiple threads would need to synchronize on a resource,
-         * but are fine with executing sequentially.  The advantage is simplified code where
+         * but are fine with executing sequentially. The advantage is simplified code where
          * tasks are put onto a blocking queue and processed sequentially by another thread.
          */
         public interface ICommand

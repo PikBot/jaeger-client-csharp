@@ -20,6 +20,8 @@ namespace Jaeger.Core.Tests.Samplers
         private const string operation = "some OPERATION";
         private static readonly TraceId TraceId = new TraceId(1L);
 
+        private static readonly IReadOnlyDictionary<string, object> EmptyTags = new ReadOnlyDictionary<string, object>(new Dictionary<string, object>());
+
         private readonly ILoggerFactory _loggerFactory;
         private readonly ProbabilisticSampler _defaultProbabilisticSampler;
         private readonly Dictionary<string, GuaranteedThroughputSampler> _operationToSamplers = new Dictionary<string, GuaranteedThroughputSampler>();
@@ -34,7 +36,7 @@ namespace Jaeger.Core.Tests.Samplers
                 DefaultLowerBoundTracesPerSecond, _loggerFactory);
 
             _defaultProbabilisticSampler.Sample(operation, TraceId)
-                .Returns(new SamplingStatus(true, new ReadOnlyDictionary<string, object>(new Dictionary<string, object>())));
+                .Returns(new SamplingStatus(true, EmptyTags));
 
             _defaultProbabilisticSampler.SamplingRate.Returns(DefaultSamplingProbability);
         }
@@ -72,7 +74,7 @@ namespace Jaeger.Core.Tests.Samplers
             _operationToSamplers.Add(operation, sampler);
 
             sampler.Sample(operation, TraceId)
-                .Returns(new SamplingStatus(true, new ReadOnlyDictionary<string, object>(new Dictionary<string, object>())));
+                .Returns(new SamplingStatus(true, EmptyTags));
 
             SamplingStatus samplingStatus = _undertest.Sample(operation, TraceId);
             Assert.True(samplingStatus.IsSampled);

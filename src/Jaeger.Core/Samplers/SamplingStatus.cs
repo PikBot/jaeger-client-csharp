@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Jaeger.Core.Util;
 
 namespace Jaeger.Core.Samplers
@@ -8,9 +7,9 @@ namespace Jaeger.Core.Samplers
     public sealed class SamplingStatus : ValueObject
     {
         public bool IsSampled { get; }
-        public ReadOnlyDictionary<string, object> Tags { get; }
+        public IReadOnlyDictionary<string, object> Tags { get; }
 
-        public SamplingStatus(bool isSampled, ReadOnlyDictionary<string, object> tags)
+        public SamplingStatus(bool isSampled, IReadOnlyDictionary<string, object> tags)
         {
             IsSampled = isSampled;
             Tags = tags ?? throw new ArgumentNullException(nameof(tags));

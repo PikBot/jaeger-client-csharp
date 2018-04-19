@@ -18,7 +18,7 @@ namespace Jaeger.Core.Samplers
         private readonly object _lock = new object();
         private ProbabilisticSampler _probabilisticSampler;
         private RateLimitingSampler _lowerBoundSampler;
-        private ReadOnlyDictionary<string, object> _tags;
+        private IReadOnlyDictionary<string, object> _tags;
 
         public GuaranteedThroughputSampler(double samplingRate, double lowerBound)
         {
@@ -47,7 +47,11 @@ namespace Jaeger.Core.Samplers
                     _probabilisticSampler.Dispose();
                     _probabilisticSampler = new ProbabilisticSampler(samplingRate);
 
-                    var newTags = new Dictionary<string, object>(_tags);
+                    var newTags = new Dictionary<string, object>();
+                    foreach (var oldTag in _tags)
+                    {
+                        newTags[oldTag.Key] = oldTag.Value;
+                    }
                     newTags[Constants.SamplerParamTagKey] = samplingRate;
 
                     _tags = new ReadOnlyDictionary<string, object>(newTags);

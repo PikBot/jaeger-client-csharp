@@ -12,7 +12,7 @@ namespace Jaeger.Core.Metrics
 
         public string Name { get; }
 
-        public ReadOnlyDictionary<string, string> Tags { get; }
+        public IReadOnlyDictionary<string, string> Tags { get; }
 
         public MetricAttribute(string name)
         {

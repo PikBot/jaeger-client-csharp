@@ -16,7 +16,7 @@ namespace Jaeger.Core.Samplers
         public const string Type = "ratelimiting";
 
         private readonly RateLimiter _rateLimiter;
-        private readonly ReadOnlyDictionary<string, object> _tags;
+        private readonly IReadOnlyDictionary<string, object> _tags;
 
         public double MaxTracesPerSecond { get; }
 

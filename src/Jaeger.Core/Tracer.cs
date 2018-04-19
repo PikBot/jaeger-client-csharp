@@ -188,10 +188,8 @@ namespace Jaeger.Core
 
                 _registryActions.Add(registry =>
                 {
-                    TextMapCodec textMapCodec = new TextMapCodec(false);
-                    _registry.Register(BuiltinFormats.TextMap, textMapCodec);
-                    TextMapCodec httpCodec = new TextMapCodec(true);
-                    _registry.Register(BuiltinFormats.HttpHeaders, httpCodec);
+                    _registry.Register(BuiltinFormats.TextMap, new TextMapCodec(urlEncoding: false));
+                    _registry.Register(BuiltinFormats.HttpHeaders, new TextMapCodec(urlEncoding: true));
                 });
             }
 

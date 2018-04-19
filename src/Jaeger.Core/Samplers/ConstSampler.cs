@@ -9,7 +9,7 @@ namespace Jaeger.Core.Samplers
         public const string Type = "const";
 
         private readonly bool _decision;
-        private readonly ReadOnlyDictionary<string, object> _tags;
+        private readonly IReadOnlyDictionary<string, object> _tags;
 
         public ConstSampler(bool sample)
         {

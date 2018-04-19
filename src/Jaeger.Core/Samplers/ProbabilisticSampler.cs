@@ -16,7 +16,7 @@ namespace Jaeger.Core.Samplers
 
         private readonly long _positiveSamplingBoundary;
         private readonly long _negativeSamplingBoundary;
-        private readonly ReadOnlyDictionary<string, object> _tags;
+        private readonly IReadOnlyDictionary<string, object> _tags;
 
         public virtual double SamplingRate { get; }
 

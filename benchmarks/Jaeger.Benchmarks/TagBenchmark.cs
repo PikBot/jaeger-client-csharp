@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using Jaeger.Core;
+using Jaeger.Core.Reporters;
 
 namespace Jaeger.Benchmarks
 {
@@ -10,7 +11,9 @@ namespace Jaeger.Benchmarks
 
         public TagBenchmark()
         {
-            _tracer = new Tracer.Builder("service").Build();
+            _tracer = new Tracer.Builder("service")
+                .WithReporter(new NoopReporter())
+                .Build();
         }
 
         [Benchmark]

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using Jaeger.Core.Reporters;
 using Jaeger.Core.Samplers;
 using NSubstitute;
@@ -213,10 +212,10 @@ namespace Jaeger.Core.Tests
         public void SpanBuilder_ShouldBuildFlagsAndTagsFromSampler()
         {
             var sampler = Substitute.For<ISampler>();
-            var samplerTags = new ReadOnlyDictionary<string, object>(new Dictionary<string, object> {
+            var samplerTags = new Dictionary<string, object> {
                 { "tag.1", "value1" },
                 { "tag.2", "value2" }
-            });
+            };
             sampler.Sample(Arg.Any<string>(), Arg.Any<TraceId>())
                 .Returns(new SamplingStatus(true, samplerTags));
 

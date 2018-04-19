@@ -13,12 +13,11 @@ namespace Jaeger.Core.Samplers
     public class PerOperationSampler : ValueObject, ISampler
     {
         private readonly object _lock = new object();
-
         private readonly ILogger<PerOperationSampler> _logger;
-        private readonly int _maxOperations;
+
+        internal int MaxOperations { get; }
         internal Dictionary<string, GuaranteedThroughputSampler> OperationNameToSampler { get; }
         internal ProbabilisticSampler DefaultSampler { get; private set; }
-
         internal double LowerBound { get; private set; }
 
 
@@ -39,7 +38,7 @@ namespace Jaeger.Core.Samplers
             double lowerBound,
             ILoggerFactory loggerFactory)
         {
-            _maxOperations = maxOperations;
+            MaxOperations = maxOperations;
             OperationNameToSampler = samplers ?? new Dictionary<string, GuaranteedThroughputSampler>();
             DefaultSampler = probabilisticSampler ?? throw new ArgumentNullException(nameof(probabilisticSampler));
             LowerBound = lowerBound;
@@ -77,7 +76,7 @@ namespace Jaeger.Core.Samplers
                     }
                     else
                     {
-                        if (OperationNameToSampler.Count < _maxOperations)
+                        if (OperationNameToSampler.Count < MaxOperations)
                         {
                             sampler = new GuaranteedThroughputSampler(samplingRate, LowerBound);
                             OperationNameToSampler[operation] = sampler;
@@ -85,7 +84,7 @@ namespace Jaeger.Core.Samplers
                         }
                         else
                         {
-                            _logger.LogInformation("Exceeded the maximum number of operations {maxOperations} for per operations sampling", _maxOperations);
+                            _logger.LogInformation("Exceeded the maximum number of operations {maxOperations} for per operations sampling", MaxOperations);
                         }
                     }
                 }
@@ -103,7 +102,7 @@ namespace Jaeger.Core.Samplers
                     return sampler.Sample(operation, id);
                 }
 
-                if (OperationNameToSampler.Count < _maxOperations)
+                if (OperationNameToSampler.Count < MaxOperations)
                 {
                     var newSampler = new GuaranteedThroughputSampler(DefaultSampler.SamplingRate, LowerBound);
                     OperationNameToSampler[operation] = newSampler;
@@ -118,7 +117,7 @@ namespace Jaeger.Core.Samplers
         {
             lock (_lock)
             {
-                return $"{nameof(PerOperationSampler)}({LowerBound}/{_maxOperations})";
+                return $"{nameof(PerOperationSampler)}({LowerBound}/{MaxOperations})";
             }
         }
 
@@ -138,7 +137,7 @@ namespace Jaeger.Core.Samplers
         {
             yield return DefaultSampler;
             yield return LowerBound;
-            yield return _maxOperations;
+            yield return MaxOperations;
             foreach (var kvp in OperationNameToSampler)
             {
                 yield return kvp;

@@ -25,10 +25,6 @@ namespace Jaeger.Core.Senders
         /// </summary>
         /// <param name="endpoint">Jaeger REST endpoint consuming jaeger.thrift, e.g
         /// http://localhost:14268/api/traces</param>
-        /// <remarks>
-        /// Uses the default {@link okhttp3.OkHttpClient} which uses {@link okhttp3.ConnectionPool#ConnectionPool()}.
-        /// Use {@link HttpSender#HttpSender(java.lang.String, int, okhttp3.OkHttpClient)} to adjust parameters.
-        /// </remarks>
         public HttpSender(string endpoint)
             : this(new Builder(endpoint))
         {
