@@ -10,7 +10,7 @@ namespace Jaeger.Core
     {
         private readonly ILogger _logger;
         private readonly Dictionary<object, IInjector> _injectors = new Dictionary<object, IInjector>();
-        internal readonly Dictionary<object, IExtractor> _extractors = new Dictionary<object, IExtractor>();
+        private readonly Dictionary<object, IExtractor> _extractors = new Dictionary<object, IExtractor>();
 
         public PropagationRegistry(ILoggerFactory loggerFactory)
         {
