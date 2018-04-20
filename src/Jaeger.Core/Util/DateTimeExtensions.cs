@@ -8,13 +8,6 @@ namespace Jaeger.Core.Util
         // - https://github.com/dotnet/coreclr/blob/master/src/mscorlib/shared/System/DateTime.cs
         // - https://github.com/dotnet/coreclr/blob/master/src/mscorlib/shared/System/DateTimeOffset.cs
 
-        // Number of 100ns ticks per time unit
-        private const long TicksPerMillisecond = 10000;
-        private const long TicksPerSecond = TicksPerMillisecond * 1000;
-        private const long TicksPerMinute = TicksPerSecond * 60;
-        private const long TicksPerHour = TicksPerMinute * 60;
-        private const long TicksPerDay = TicksPerHour * 24;
-
         // Number of days in a non-leap year
         private const int DaysPerYear = 365;
         // Number of days in 4 years
@@ -26,7 +19,7 @@ namespace Jaeger.Core.Util
         // Number of days from 1/1/0001 to 12/31/1969
         private const int DaysTo1970 = DaysPer400Years * 4 + DaysPer100Years * 3 + DaysPer4Years * 17 + DaysPerYear; // 719,162
 
-        private const long UnixEpochTicks = DaysTo1970 * TicksPerDay;
+        private const long UnixEpochTicks = DaysTo1970 * TimeSpan.TicksPerDay;
         private const long UnixEpochMilliseconds = UnixEpochTicks / TimeSpan.TicksPerMillisecond; // 62,135,596,800,000
 
         // a microsecond is 1000 milliseconds
