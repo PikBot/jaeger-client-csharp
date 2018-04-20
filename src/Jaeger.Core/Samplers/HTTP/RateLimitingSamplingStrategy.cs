@@ -5,9 +5,9 @@ namespace Jaeger.Core.Samplers.HTTP
 {
     public class RateLimitingSamplingStrategy : ValueObject
     {
-        public short MaxTracesPerSecond { get; }
+        public double MaxTracesPerSecond { get; }
 
-        public RateLimitingSamplingStrategy(short maxTracesPerSecond)
+        public RateLimitingSamplingStrategy(double maxTracesPerSecond)
         {
             MaxTracesPerSecond = maxTracesPerSecond;
         }

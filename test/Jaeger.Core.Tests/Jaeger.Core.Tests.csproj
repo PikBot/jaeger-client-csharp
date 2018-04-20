@@ -21,6 +21,7 @@
     <Content Include="xunit.runner.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <EmbeddedResource Include="Samplers/Resources/*.json" />
   </ItemGroup>
 
 </Project>
