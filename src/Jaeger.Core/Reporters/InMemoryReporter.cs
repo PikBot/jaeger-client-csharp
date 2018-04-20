@@ -15,7 +15,7 @@ namespace Jaeger.Core.Reporters
             }
         }
 
-        public List<Span> GetSpans()
+        public IReadOnlyList<Span> GetSpans()
         {
             lock (_lock)
             {

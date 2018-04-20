@@ -59,7 +59,7 @@ namespace Jaeger.Core.Baggage
             return span.Context.WithBaggageItem(key, value);
         }
 
-        private void LogFields(Span span, String key, String value, String prevItem, bool truncated, bool valid)
+        private void LogFields(Span span, string key, string value, string prevItem, bool truncated, bool valid)
         {
             if (!span.Context.IsSampled)
             {

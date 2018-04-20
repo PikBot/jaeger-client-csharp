@@ -165,7 +165,7 @@ namespace Jaeger.Core
             private ISampler _sampler;
             private IReporter _reporter;
             private PropagationRegistry _registry;
-            private IMetrics _metrics;
+            private IMetrics _metrics = new MetricsImpl(NoopMetricsFactory.Instance);
             private readonly string _serviceName;
             private IClock _clock = new SystemClock();
             private readonly Dictionary<string, object> _tags = new Dictionary<string, object>();
@@ -195,19 +195,19 @@ namespace Jaeger.Core
 
             public Builder WithLoggerFactory(ILoggerFactory loggerFactory)
             {
-                _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+                _loggerFactory = loggerFactory;
                 return this;
             }
 
             public Builder WithReporter(IReporter reporter)
             {
-                _reporter = reporter ?? throw new ArgumentNullException(nameof(reporter));
+                _reporter = reporter;
                 return this;
             }
 
             public Builder WithSampler(ISampler sampler)
             {
-                _sampler = sampler ?? throw new ArgumentNullException(nameof(sampler));
+                _sampler = sampler;
                 return this;
             }
             public Builder RegisterInjector<TCarrier>(IFormat<TCarrier> format, Injector<TCarrier> injector)
@@ -230,7 +230,7 @@ namespace Jaeger.Core
 
             public Builder WithMetrics(IMetrics metrics)
             {
-                _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
+                _metrics = metrics;
                 return this;
             }
 
@@ -242,13 +242,13 @@ namespace Jaeger.Core
 
             public Builder WithScopeManager(IScopeManager scopeManager)
             {
-                _scopeManager = scopeManager ?? throw new ArgumentNullException(nameof(scopeManager));
+                _scopeManager = scopeManager;
                 return this;
             }
 
             public Builder WithClock(IClock clock)
             {
-                _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+                _clock = clock;
                 return this;
             }
 
@@ -302,7 +302,7 @@ namespace Jaeger.Core
 
             public Builder WithBaggageRestrictionManager(IBaggageRestrictionManager baggageRestrictionManager)
             {
-                _baggageRestrictionManager = baggageRestrictionManager ?? throw new ArgumentNullException(nameof(baggageRestrictionManager));
+                _baggageRestrictionManager = baggageRestrictionManager;
                 return this;
             }
 

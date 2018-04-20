@@ -79,7 +79,7 @@ namespace Jaeger.Core.Senders
             internal int MaxPacketSize { get; private set; } = OneMbInBytes;
             internal AuthenticationHeaderValue AuthenticationHeaderValue { get; private set; }
 
-            public Builder(String endpoint)
+            public Builder(string endpoint)
             {
                 Endpoint = endpoint;
             }

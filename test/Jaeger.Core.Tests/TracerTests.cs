@@ -42,7 +42,7 @@ namespace Jaeger.Core.Tests
         [Fact]
         public void TestBuildSpan()
         {
-            String expectedOperation = "fry";
+            string expectedOperation = "fry";
             Span span = (Span)_tracer.BuildSpan(expectedOperation).Start();
 
             Assert.Equal(expectedOperation, span.OperationName);
@@ -51,7 +51,7 @@ namespace Jaeger.Core.Tests
         [Fact]
         public void TestTracerMetrics()
         {
-            String expectedOperation = "fry";
+            string expectedOperation = "fry";
             _tracer.BuildSpan(expectedOperation).Start();
             Assert.Equal(1, _metricsFactory.GetCounter("jaeger:started_spans", "sampled=y"));
             Assert.Equal(0, _metricsFactory.GetCounter("jaeger:started_spans", "sampled=n"));
@@ -169,7 +169,7 @@ namespace Jaeger.Core.Tests
         [Fact]
         public void TestSpanContextNotSampled()
         {
-            String expectedOperation = "fry";
+            string expectedOperation = "fry";
             Span first = (Span)_tracer.BuildSpan(expectedOperation).Start();
             _tracer.BuildSpan(expectedOperation).AsChildOf(first.Context.WithFlags((byte)0)).Start();
 

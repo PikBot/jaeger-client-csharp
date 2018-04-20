@@ -1,6 +1,5 @@
 using System;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 namespace Jaeger.Core.Util
@@ -14,11 +13,6 @@ namespace Jaeger.Core.Util
         public DefaultHttpClient(HttpClient httpClient = null)
         {
             _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromMilliseconds(TimeoutMs) };
-        }
-
-        public void SetAuthorization(AuthenticationHeaderValue authentication)
-        {
-            _httpClient.DefaultRequestHeaders.Authorization = authentication;
         }
 
         public async Task<string> MakeGetRequestAsync(string requestUri)

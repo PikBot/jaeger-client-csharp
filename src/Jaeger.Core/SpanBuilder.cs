@@ -122,7 +122,7 @@ namespace Jaeger.Core
                 _startTimestampUtc = _tracer.Clock.UtcNow();
             }
 
-            var span = new Span(_tracer, _operationName, context, _startTimestampUtc, _tags, _references);
+            var span = new Span(_tracer, _operationName, context, _startTimestampUtc.Value, _tags, _references);
             if (context.IsSampled)
             {
                 _tracer.Metrics.SpansStartedSampled.Inc(1);

@@ -34,14 +34,14 @@ namespace Jaeger.Core
             Tracer tracer,
             string operationName,
             SpanContext context,
-            DateTime? startTimestampUtc,
+            DateTime startTimestampUtc,
             Dictionary<string, object> tags,
             IReadOnlyList<Reference> references)
         {
-            Tracer = tracer ?? throw new ArgumentNullException(nameof(tracer));
+            Tracer = tracer;
             OperationName = operationName;
-            Context = context ?? throw new ArgumentNullException(nameof(context));
-            StartTimestampUtc = startTimestampUtc ?? Tracer.Clock.UtcNow();
+            Context = context;
+            StartTimestampUtc = startTimestampUtc;
             _references = references ?? EmptyReferences;
 
             _tags = new Dictionary<string, object>();
@@ -69,7 +69,13 @@ namespace Jaeger.Core
             return Tracer.ServiceName;
         }
 
-        public IReadOnlyList<LogData> GetLogs() => _logs ?? EmptyLogs;
+        public IReadOnlyList<LogData> GetLogs()
+        {
+            lock (_lock)
+            {
+                return _logs ?? EmptyLogs;
+            }
+        }
 
         public ISpan SetBaggageItem(string key, string value)
         {

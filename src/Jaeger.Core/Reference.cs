@@ -6,19 +6,19 @@ namespace Jaeger.Core
 {
     public sealed class Reference : ValueObject
     {
-        public string Type { get; }
         public SpanContext Context { get; }
+        public string Type { get; }
 
         public Reference(SpanContext context, string type)
         {
-            Type = type;
             Context = context;
+            Type = type;
         }
 
         protected override IEnumerable<object> GetAtomicValues()
         {
-            yield return Type;
             yield return Context;
+            yield return Type;
         }
     }
 }

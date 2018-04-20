@@ -71,15 +71,15 @@ namespace Jaeger.Core.Propagation
             {
                 // TODO there should be no lower-case here
                 string key = entry.Key.ToLowerInvariant();
-                if (string.Equals(key, _contextKey))
+                if (string.Equals(key, _contextKey, StringComparison.Ordinal))
                 {
                     context = SpanContext.ContextFromString(DecodedValue(entry.Value));
                 }
-                else if (string.Equals(key, Constants.DebugIdHeaderKey))
+                else if (string.Equals(key, Constants.DebugIdHeaderKey, StringComparison.Ordinal))
                 {
                     debugId = DecodedValue(entry.Value);
                 }
-                else if (key.StartsWith(_baggagePrefix))
+                else if (key.StartsWith(_baggagePrefix, StringComparison.Ordinal))
                 {
                     if (baggage == null)
                     {

@@ -204,19 +204,19 @@ namespace Jaeger.Core.Reporters
 
             public Builder WithMetrics(IMetrics metrics)
             {
-                _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
+                _metrics = metrics;
                 return this;
             }
 
             public Builder WithSender(ISender sender)
             {
-                _sender = sender ?? throw new ArgumentNullException(nameof(sender));
+                _sender = sender;
                 return this;
             }
 
             public Builder WithLoggerFactory(ILoggerFactory loggerFactory)
             {
-                _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+                _loggerFactory = loggerFactory;
                 return this;
             }
 

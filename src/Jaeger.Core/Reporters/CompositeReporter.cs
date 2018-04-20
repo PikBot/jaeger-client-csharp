@@ -13,7 +13,7 @@ namespace Jaeger.Core.Reporters
 
         public void Report(Span span)
         {
-            foreach(var reporter in _reporters)
+            foreach (var reporter in _reporters)
             {
                 reporter.Report(span);
             }
@@ -21,7 +21,7 @@ namespace Jaeger.Core.Reporters
 
         public void Dispose()
         {
-            foreach(var reporter in _reporters)
+            foreach (var reporter in _reporters)
             {
                 reporter.Dispose();
             }

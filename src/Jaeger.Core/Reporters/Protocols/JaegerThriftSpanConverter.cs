@@ -5,7 +5,6 @@ using System.Globalization;
 using Jaeger.Core.Util;
 using OpenTracing;
 using ThriftSpan = Jaeger.Thrift.Span;
-using ThriftProcess = Jaeger.Thrift.Process;
 using ThriftTag = Jaeger.Thrift.Tag;
 using ThriftReference = Jaeger.Thrift.SpanRef;
 using ThriftReferenceType = Jaeger.Thrift.SpanRefType;
@@ -36,20 +35,12 @@ namespace Jaeger.Core.Reporters.Protocols
                 duration
             )
             {
+                References = oneChildOfParent ? new List<ThriftReference>() : BuildReferences(references),
                 Tags = BuildTags(span.GetTags()),
                 Logs = BuildLogs(span.GetLogs()),
-                References = oneChildOfParent ? new List<ThriftReference>() : BuildReferences(references)
             };
 
             return thriftSpan;
-        }
-
-        public static ThriftProcess BuildThriftProcess(Tracer tracer)
-        {
-            return new ThriftProcess(tracer.ServiceName)
-            {
-                Tags = BuildTags(tracer.Tags)
-            };
         }
 
         internal static List<ThriftReference> BuildReferences(IReadOnlyList<Reference> references)

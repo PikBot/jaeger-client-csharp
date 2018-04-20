@@ -60,7 +60,7 @@ namespace Jaeger.Core.Tests.Samplers
         [Fact]
         public void TestCreateGuaranteedSamplerOnUnseenOperation()
         {
-            String newOperation = "new OPERATION";
+            string newOperation = "new OPERATION";
             _undertest.Sample(newOperation, TraceId);
             Assert.Equal(new GuaranteedThroughputSampler(DefaultSamplingProbability,
                                                          DefaultLowerBoundTracesPerSecond),
