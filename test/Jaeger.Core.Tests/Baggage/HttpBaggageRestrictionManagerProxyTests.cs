@@ -20,14 +20,14 @@ namespace Jaeger.Core.Tests.Baggage
         public HttpBaggageRestrictionManagerProxyTest()
         {
             _httpClient = Substitute.For<IHttpClient>();
-            _undertest = new HttpBaggageRestrictionManagerProxy(_httpClient, "www.example.com:80");
+            _undertest = new HttpBaggageRestrictionManagerProxy(_httpClient, "www.example.com");
         }
 
         [Fact]
         public async Task TestGetBaggageRestrictions()
         {
-            // TODO Set up json string
-            //_httpClient.MakeGetRequestAsync(Arg.Any<string>()).Returns();
+            _httpClient.MakeGetRequestAsync("http://www.example.com/baggageRestrictions?service=clairvoyant")
+                .Returns("[{\"baggageKey\":\"key\",\"maxValueLength\":\"10\"}]");
 
             List<BaggageRestrictionResponse> response = await _undertest.GetBaggageRestrictionsAsync("clairvoyant");
             Assert.NotNull(response);
@@ -38,7 +38,7 @@ namespace Jaeger.Core.Tests.Baggage
         [Fact]
         public async Task TestGetSamplingStrategyError()
         {
-            _httpClient.MakeGetRequestAsync(Arg.Any<string>())
+            _httpClient.MakeGetRequestAsync("http://www.example.com/baggageRestrictions?service=")
                 .Returns(new Func<CallInfo, string>(_ => { throw new InvalidOperationException(); }));
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => _undertest.GetBaggageRestrictionsAsync(""));
