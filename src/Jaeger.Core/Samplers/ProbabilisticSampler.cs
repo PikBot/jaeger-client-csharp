@@ -26,12 +26,11 @@ namespace Jaeger.Core.Samplers
 
             SamplingRate = samplingRate;
 
-            // TODO test me!! :)
-            unchecked
-            {
-                _positiveSamplingBoundary = (long)(((1L << 63) - 1) * samplingRate);
-                _negativeSamplingBoundary = (long)((1L << 63) * samplingRate);
-            }
+            // Note: Java uses bit shifting but that code results in a compiler warning in C#.
+            // We could enclose it in an `unchecked` block but we're using this code
+            // as it's more readable.
+            _positiveSamplingBoundary = (long)(long.MaxValue * samplingRate);
+            _negativeSamplingBoundary = (long)(long.MinValue * samplingRate);
 
             _tags = new Dictionary<string, object> {
                 { Constants.SamplerTypeTagKey, Type },
