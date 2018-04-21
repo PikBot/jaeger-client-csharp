@@ -195,12 +195,7 @@ namespace Jaeger.Core
 
             public Builder(string serviceName)
             {
-                if (string.IsNullOrWhiteSpace(serviceName))
-                {
-                    throw new ArgumentException("Service name must not be null or empty", nameof(serviceName));
-                }
-
-                _serviceName = serviceName;
+                _serviceName = CheckValidServiceName(serviceName);
 
                 _registryActions.Add(registry =>
                 {
@@ -304,7 +299,7 @@ namespace Jaeger.Core
                 return this;
             }
 
-            private Builder WithTags(IDictionary<string, object> tags)
+            public Builder WithTags(IEnumerable<KeyValuePair<string, string>> tags)
             {
                 if (tags != null)
                 {
@@ -357,6 +352,15 @@ namespace Jaeger.Core
 
                 return new Tracer(_serviceName, _reporter, _sampler, _registry, _clock, _metrics, _loggerFactory,
                     _tags, _zipkinSharedRpcSpan, _scopeManager, _baggageRestrictionManager, _expandExceptionLogs);
+            }
+
+            public static String CheckValidServiceName(String serviceName)
+            {
+                if (string.IsNullOrWhiteSpace(serviceName))
+                {
+                    throw new ArgumentException("Service name must not be null or empty");
+                }
+                return serviceName;
             }
         }
     }

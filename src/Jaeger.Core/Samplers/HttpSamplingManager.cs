@@ -13,6 +13,11 @@ namespace Jaeger.Core.Samplers
         private readonly IHttpClient _httpClient;
         private readonly string _hostPort;
 
+        public HttpSamplingManager(string hostPort = DefaultHostPort)
+            : this(new DefaultHttpClient(), hostPort)
+        {
+        }
+
         public HttpSamplingManager(IHttpClient httpClient, string hostPort = DefaultHostPort)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
