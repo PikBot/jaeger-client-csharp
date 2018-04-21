@@ -48,12 +48,12 @@ namespace Jaeger.Core.Senders
             _agentClient = new Agent.Client(ProtocolFactory.GetProtocol(_transport));
         }
 
-        protected override async Task SendAsync(ThriftProcess process, List<ThriftSpan> spans)
+        protected override async Task SendAsync(ThriftProcess process, List<ThriftSpan> spans, CancellationToken cancellationToken)
         {
             try
             {
                 var batch = new ThriftBatch(process, spans);
-                await _agentClient.emitBatchAsync(batch, CancellationToken.None).ConfigureAwait(false);
+                await _agentClient.emitBatchAsync(batch, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -61,11 +61,11 @@ namespace Jaeger.Core.Senders
             }
         }
 
-        public override int Close()
+        public override async Task<int> CloseAsync(CancellationToken cancellationToken)
         {
             try
             {
-                return base.Close();
+                return await base.CloseAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {

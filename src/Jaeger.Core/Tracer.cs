@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using Jaeger.Core.Baggage;
 using Jaeger.Core.Metrics;
 using Jaeger.Core.Propagation;
@@ -22,6 +23,7 @@ namespace Jaeger.Core
     public class Tracer : ITracer, IDisposable
     {
         private readonly BaggageSetter _baggageSetter;
+        private bool _isClosed = false;
 
         public string ServiceName { get; }
         public IReporter Reporter { get; }
@@ -142,10 +144,24 @@ namespace Jaeger.Core
             return _baggageSetter.SetBaggage(span, key, value);
         }
 
+        /// <summary>
+        /// Shuts down the <see cref="IReporter"/> and <see cref="ISampler"/>.
+        /// </summary>
+        public async Task CloseAsync(CancellationToken cancellationToken)
+        {
+            if (!_isClosed)
+            {
+                await Reporter.CloseAsync(cancellationToken).ConfigureAwait(false);
+                Sampler.Close();
+                _isClosed = true;
+            }
+        }
+
         public void Dispose()
         {
-            Reporter.Dispose();
-            Sampler.Dispose();
+            CancellationToken disposeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15)).Token;
+
+            CloseAsync(disposeTimeout).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         internal string GetHostName()

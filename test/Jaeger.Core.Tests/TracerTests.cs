@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Jaeger.Core;
 using Jaeger.Core.Metrics;
 using Jaeger.Core.Propagation;
@@ -142,8 +143,8 @@ namespace Jaeger.Core.Tests
                 .Build();
 
             tracer.Dispose();
-            reporter.Received(1).Dispose();
-            sampler.Received(1).Dispose();
+            reporter.Received(1).CloseAsync(Arg.Any<CancellationToken>());
+            sampler.Received(1).Close();
         }
 
         [Fact]

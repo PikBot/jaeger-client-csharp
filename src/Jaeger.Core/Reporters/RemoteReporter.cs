@@ -19,8 +19,9 @@ namespace Jaeger.Core.Reporters
         public static readonly TimeSpan DefaultFlushInterval = TimeSpan.FromSeconds(1);
 
         private readonly BlockingCollection<ICommand> _commandQueue;
-        private readonly Task _queueProcessor;
-        private readonly Timer _flushTimer;
+        private readonly Task _queueProcessorTask;
+        private readonly TimeSpan _flushInterval;
+        private readonly Task _flushTask;
         private readonly ISender _sender;
         private readonly IMetrics _metrics;
         private readonly ILogger _logger;
@@ -34,9 +35,10 @@ namespace Jaeger.Core.Reporters
             _commandQueue = new BlockingCollection<ICommand>(maxQueueSize);
 
             // start a thread to append spans
-            _queueProcessor = Task.Factory.StartNew(ConsumeQueue);
+            _queueProcessorTask = Task.Factory.StartNew(ProcessQueueLoop, TaskCreationOptions.LongRunning);
 
-            _flushTimer = new Timer(_ => Flush(), null, flushInterval, flushInterval);
+            _flushInterval = flushInterval;
+            _flushTask = Task.Factory.StartNew(FlushLoop, TaskCreationOptions.LongRunning);
         }
 
         public void Report(Span span)
@@ -49,11 +51,7 @@ namespace Jaeger.Core.Reporters
             }
             catch (InvalidOperationException)
             {
-                // The queue has been marked as Completed -> no-op.
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, $"{nameof(Report)}() failed");
+                // The queue has been marked as IsAddingCompleted -> no-op.
             }
 
             if (!added)
@@ -62,52 +60,31 @@ namespace Jaeger.Core.Reporters
             }
         }
 
-        private void ConsumeQueue()
+        public async Task CloseAsync(CancellationToken cancellationToken)
         {
-            while (!_commandQueue.IsCompleted)
-            {
-                try
-                {
-                    // This blocks until a span is available.
-                    ICommand command = _commandQueue.Take();
+            // Note: Java creates a CloseCommand but we have CompleteAdding() in C# so we don't need the command.
+            // (This also stops the FlushLoop)
+            _commandQueue.CompleteAdding();
 
-                    try
-                    {
-                        command.Execute();
-                    }
-                    catch (SenderException ex)
-                    {
-                        _metrics.ReporterFailure.Inc(ex.DroppedSpanCount);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "QueueProcessor error");
-                    // Do nothing, and try again on next span.
-                }
-            }
-        }
-
-        public void Dispose()
-        {
             try
             {
-                // Note: Java creates a CloseCommand but we have CompleteAdding() in C# so we don't need the command.
-                _commandQueue.CompleteAdding();
+                // Give processor some time to process any queued commands.
 
-                // Give sender some time to process any queued spans.
-                _queueProcessor.Wait(10000);
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    new CancellationTokenSource(10000).Token);
+
+                _queueProcessorTask.Wait(cts.Token);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException ex)
             {
                 _logger.LogError(ex, "Dispose interrupted");
             }
             finally
             {
-                _flushTimer.Dispose();
                 try
                 {
-                    int n = _sender.Close();
+                    int n = await _sender.CloseAsync(cancellationToken).ConfigureAwait(false);
                     _metrics.ReporterSuccess.Inc(n);
                 }
                 catch (SenderException ex)
@@ -130,11 +107,39 @@ namespace Jaeger.Core.Reporters
             }
             catch (InvalidOperationException)
             {
-                // The queue has been marked as Completed -> no-op.
+                // The queue has been marked as IsAddingCompleted -> no-op.
             }
-            catch (Exception ex)
+        }
+
+        private async Task FlushLoop()
+        {
+            // First flush should happen later so we start with the delay
+            do
             {
-                _logger.LogWarning(ex, $"{nameof(Flush)}() failed");
+                await Task.Delay(_flushInterval).ConfigureAwait(false);
+                Flush();
+            }
+            while (!_commandQueue.IsAddingCompleted);
+        }
+
+        private async Task ProcessQueueLoop()
+        {
+            // This blocks until a command is available or IsCompleted=true
+            foreach (ICommand command in _commandQueue.GetConsumingEnumerable())
+            {
+                try
+                {
+                    await command.ExecuteAsync().ConfigureAwait(false);
+                }
+                catch (SenderException ex)
+                {
+                    _metrics.ReporterFailure.Inc(ex.DroppedSpanCount);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "QueueProcessor error");
+                    // Do nothing, and try again on next command.
+                }
             }
         }
 
@@ -146,7 +151,7 @@ namespace Jaeger.Core.Reporters
          */
         public interface ICommand
         {
-            void Execute();
+            Task ExecuteAsync();
         }
 
         class AppendCommand : ICommand
@@ -160,9 +165,9 @@ namespace Jaeger.Core.Reporters
                 _span = span;
             }
 
-            public void Execute()
+            public Task ExecuteAsync()
             {
-                _reporter._sender.Append(_span);
+                return _reporter._sender.AppendAsync(_span, CancellationToken.None);
             }
         }
 
@@ -175,9 +180,9 @@ namespace Jaeger.Core.Reporters
                 _reporter = reporter;
             }
 
-            public void Execute()
+            public async Task ExecuteAsync()
             {
-                int n = _reporter._sender.Flush();
+                int n = await _reporter._sender.FlushAsync(CancellationToken.None).ConfigureAwait(false);
                 _reporter._metrics.ReporterSuccess.Inc(n);
             }
         }

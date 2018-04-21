@@ -61,7 +61,7 @@ namespace Jaeger.Core.Samplers
 
                 if (!defaultSampler.Equals(DefaultSampler))
                 {
-                    DefaultSampler.Dispose();
+                    DefaultSampler.Close();
                     DefaultSampler = defaultSampler;
                     isUpdated = true;
                 }
@@ -121,14 +121,14 @@ namespace Jaeger.Core.Samplers
             }
         }
 
-        public void Dispose()
+        public void Close()
         {
             lock (_lock)
             {
-                DefaultSampler.Dispose();
+                DefaultSampler.Close();
                 foreach (var sampler in OperationNameToSampler.Values)
                 {
-                    sampler.Dispose();
+                    sampler.Close();
                 }
             }
         }

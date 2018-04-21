@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Jaeger.Core.Reporters
 {
@@ -19,11 +21,11 @@ namespace Jaeger.Core.Reporters
             }
         }
 
-        public void Dispose()
+        public async Task CloseAsync(CancellationToken cancellationToken)
         {
             foreach (var reporter in _reporters)
             {
-                reporter.Dispose();
+                await reporter.CloseAsync(cancellationToken).ConfigureAwait(false);
             }
         }
     }

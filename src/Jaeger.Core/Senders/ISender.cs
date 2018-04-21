@@ -1,11 +1,15 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Jaeger.Core.Senders
 {
     public interface ISender
     {
-        int Append(Span span);
+        Task<int> AppendAsync(Span span, CancellationToken cancellationToken);
 
-        int Flush();
+        Task<int> FlushAsync(CancellationToken cancellationToken);
 
-        int Close();
+        Task<int> CloseAsync(CancellationToken cancellationToken);
     }
 }

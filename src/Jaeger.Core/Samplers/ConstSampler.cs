@@ -24,7 +24,7 @@ namespace Jaeger.Core.Samplers
             return new SamplingStatus(_decision, _tags);
         }
 
-        public void Dispose()
+        public void Close()
         {
             // nothing to do
         }

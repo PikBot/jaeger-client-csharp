@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Threading.Tasks;
 using Jaeger.Core.Metrics;
 using Jaeger.Core.Samplers;
 using Jaeger.Core.Samplers.HTTP;
@@ -39,7 +39,7 @@ namespace Jaeger.Core.Tests.Samplers
         }
         public void Dispose()
         {
-            _undertest.Dispose();
+            _undertest.Close();
         }
 
         [Fact]
@@ -87,7 +87,7 @@ namespace Jaeger.Core.Tests.Samplers
         }
 
         [Fact(Skip="Does not yet work because it would require PerOperationSampler.Update to be virtual and calling virtual members in constructors doesn't work properly with NSubstitute (This is not recommended anyway)")]
-        public void TestUpdatePerOperationSamplerUpdatesExistingPerOperationSampler()
+        public async Task TestUpdatePerOperationSamplerUpdatesExistingPerOperationSampler()
         {
             OperationSamplingParameters parameters = new OperationSamplingParameters(1, 1, new List<PerOperationSamplingParameters>());
             PerOperationSampler perOperationSampler = Substitute.ForPartsOf<PerOperationSampler>(10, parameters, NullLoggerFactory.Instance);
@@ -102,7 +102,7 @@ namespace Jaeger.Core.Tests.Samplers
                 .Build();
 
             _undertest.UpdateSampler();
-            Thread.Sleep(20);
+            await Task.Delay(20);
             //updateSampler is hit once automatically because of the pollTimer
             perOperationSampler.Received(2).Update(parameters);
         }

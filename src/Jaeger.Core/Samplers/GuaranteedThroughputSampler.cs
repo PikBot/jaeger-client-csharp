@@ -43,7 +43,7 @@ namespace Jaeger.Core.Samplers
                 var isUpdated = false;
                 if (samplingRate != _probabilisticSampler.SamplingRate)
                 {
-                    _probabilisticSampler.Dispose();
+                    _probabilisticSampler.Close();
                     _probabilisticSampler = new ProbabilisticSampler(samplingRate);
 
                     var newTags = new Dictionary<string, object>();
@@ -58,7 +58,7 @@ namespace Jaeger.Core.Samplers
                 }
                 if (lowerBound != _lowerBoundSampler.MaxTracesPerSecond)
                 {
-                    _lowerBoundSampler.Dispose();
+                    _lowerBoundSampler.Close();
                     _lowerBoundSampler = new RateLimitingSampler(lowerBound);
                     isUpdated = true;
                 }
@@ -98,12 +98,12 @@ namespace Jaeger.Core.Samplers
             }
         }
 
-        public void Dispose()
+        public void Close()
         {
             lock (_lock)
             {
-                _probabilisticSampler.Dispose();
-                _lowerBoundSampler.Dispose();
+                _probabilisticSampler.Close();
+                _lowerBoundSampler.Close();
             }
         }
 

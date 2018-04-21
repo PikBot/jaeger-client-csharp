@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Jaeger.Core.Exceptions;
 using Jaeger.Core.Reporters.Protocols;
@@ -26,7 +27,7 @@ namespace Jaeger.Core.Senders
         {
         }
 
-        public int Append(Span span)
+        public async Task<int> AppendAsync(Span span, CancellationToken cancellationToken)
         {
             if (_process == null)
             {
@@ -51,13 +52,13 @@ namespace Jaeger.Core.Senders
                 {
                     return 0;
                 }
-                return Flush();
+                return await FlushAsync(cancellationToken).ConfigureAwait(false);
             }
 
             int n;
             try
             {
-                n = Flush();
+                n = await FlushAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (SenderException ex)
             {
@@ -94,9 +95,9 @@ namespace Jaeger.Core.Senders
             }
         }
 
-        protected abstract Task SendAsync(ThriftProcess process, List<ThriftSpan> spans);
+        protected abstract Task SendAsync(ThriftProcess process, List<ThriftSpan> spans, CancellationToken cancellationToken);
 
-        public int Flush()
+        public async Task<int> FlushAsync(CancellationToken cancellationToken)
         {
             if (_spanBuffer.Count == 0)
             {
@@ -106,7 +107,7 @@ namespace Jaeger.Core.Senders
             int n = _spanBuffer.Count;
             try
             {
-                SendAsync(_process, _spanBuffer).ConfigureAwait(false).GetAwaiter().GetResult();
+                await SendAsync(_process, _spanBuffer, cancellationToken).ConfigureAwait(false);
             }
             catch (SenderException ex)
             {
@@ -120,9 +121,9 @@ namespace Jaeger.Core.Senders
             return n;
         }
 
-        public virtual int Close()
+        public virtual Task<int> CloseAsync(CancellationToken cancellationToken)
         {
-            return Flush();
+            return FlushAsync(cancellationToken);
         }
     }
 }

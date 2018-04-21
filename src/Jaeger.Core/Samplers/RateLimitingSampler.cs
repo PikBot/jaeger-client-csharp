@@ -40,7 +40,7 @@ namespace Jaeger.Core.Samplers
             return $"{nameof(RateLimitingSampler)}({MaxTracesPerSecond})";
         }
 
-        public void Dispose()
+        public void Close()
         {
             // nothing to do
         }

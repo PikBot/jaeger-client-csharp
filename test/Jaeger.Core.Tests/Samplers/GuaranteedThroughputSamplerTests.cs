@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using Jaeger.Core.Samplers;
-using NSubstitute;
 using Xunit;
 
 namespace Jaeger.Core.Tests.Samplers
@@ -12,7 +10,7 @@ namespace Jaeger.Core.Tests.Samplers
 
         public void Dispose()
         {
-            _undertest.Dispose();
+            _undertest.Close();
         }
 
         [Fact]

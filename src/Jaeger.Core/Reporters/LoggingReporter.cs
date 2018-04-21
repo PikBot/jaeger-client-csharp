@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -21,8 +23,9 @@ namespace Jaeger.Core.Reporters
             Logger.LogInformation("Span reported: {span}", JsonConvert.SerializeObject(span));
         }
 
-        public void Dispose()
+        public Task CloseAsync(CancellationToken cancellationToken)
         {
+            return Task.CompletedTask;
         }
     }
 }

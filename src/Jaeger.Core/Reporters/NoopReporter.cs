@@ -1,3 +1,6 @@
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Jaeger.Core.Reporters
 {
     public class NoopReporter : IReporter
@@ -6,8 +9,9 @@ namespace Jaeger.Core.Reporters
         {
         }
 
-        public void Dispose()
+        public Task CloseAsync(CancellationToken cancellationToken)
         {
+            return Task.CompletedTask;
         }
     }
 }

@@ -55,7 +55,7 @@ namespace Jaeger.Core.Samplers
             return $"{nameof(ProbabilisticSampler)}({SamplingRate})";
         }
 
-        public void Dispose()
+        public void Close()
         {
             // nothing to do
         }

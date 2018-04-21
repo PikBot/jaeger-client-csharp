@@ -94,7 +94,7 @@ namespace Jaeger.Core.Samplers
             {
                 if (!Sampler.Equals(sampler))
                 {
-                    Sampler.Dispose();
+                    Sampler.Close();
                     Sampler = sampler;
                     _metrics.SamplerUpdated.Inc(1);
                 }
@@ -114,7 +114,7 @@ namespace Jaeger.Core.Samplers
                 }
                 else
                 {
-                    Sampler.Dispose();
+                    Sampler.Close();
                     Sampler = new PerOperationSampler(_maxOperations, samplingParameters, _loggerFactory);
                 }
             }
@@ -136,12 +136,12 @@ namespace Jaeger.Core.Samplers
             }
         }
 
-        public void Dispose()
+        public void Close()
         {
             lock (_lock)
             {
-                Sampler.Dispose();
                 _pollTimer.Dispose();
+                Sampler.Close();
             }
         }
 

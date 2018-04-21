@@ -27,7 +27,7 @@ namespace Jaeger.Core.Samplers
         public async Task<SamplingStrategyResponse> GetSamplingStrategyAsync(string serviceName)
         {
             string url = "http://" + _hostPort + "/?service=" + Uri.EscapeDataString(serviceName);
-            string jsonString = await _httpClient.MakeGetRequestAsync(url);
+            string jsonString = await _httpClient.MakeGetRequestAsync(url).ConfigureAwait(false);
 
             return ParseJson(jsonString);
         }

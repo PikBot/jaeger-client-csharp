@@ -28,7 +28,7 @@ namespace Jaeger.Core.Baggage
         public async Task<List<BaggageRestrictionResponse>> GetBaggageRestrictionsAsync(string serviceName)
         {
             string url = "http://" + _hostPort + "/baggageRestrictions?service=" + Uri.EscapeDataString(serviceName);
-            string jsonString = await _httpClient.MakeGetRequestAsync(url);
+            string jsonString = await _httpClient.MakeGetRequestAsync(url).ConfigureAwait(false);
 
             return ParseJson(jsonString);
         }

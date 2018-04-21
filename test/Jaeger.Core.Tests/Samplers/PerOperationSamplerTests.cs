@@ -43,7 +43,7 @@ namespace Jaeger.Core.Tests.Samplers
 
         public void Dispose()
         {
-            _undertest.Dispose();
+            _undertest.Close();
         }
 
         [Fact]

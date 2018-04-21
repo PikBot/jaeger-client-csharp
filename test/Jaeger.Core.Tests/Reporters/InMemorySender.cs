@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Jaeger.Core.Reporters.Protocols;
 using Jaeger.Core.Senders;
 using ThriftSpan = Jaeger.Thrift.Span;
@@ -18,8 +19,6 @@ namespace Jaeger.Core.Tests.Reporters
 
         // By default, all Append actions are allowed.
         private ManualResetEventSlim _blocker = new ManualResetEventSlim(true);
-
-        public volatile int FlushCallCount;
 
         public InMemorySender()
         {
@@ -43,30 +42,28 @@ namespace Jaeger.Core.Tests.Reporters
             return new List<ThriftSpan>(_received);
         }
 
-        public int Append(Span span)
+        public Task<int> AppendAsync(Span span, CancellationToken cancellationToken)
         {
             _blocker.Wait();
 
             ThriftSpan thriftSpan = JaegerThriftSpanConverter.ConvertSpan(span);
             _appended.Add(thriftSpan);
             _received.Add(thriftSpan);
-            return 0;
+            return Task.FromResult(0);
         }
 
-        public int Flush()
+        public virtual Task<int> FlushAsync(CancellationToken cancellationToken)
         {
-            FlushCallCount++;
-
             int flushedSpans = _appended.Count;
             _flushed.AddRange(_appended);
             _appended.Clear();
 
-            return flushedSpans;
+            return Task.FromResult(flushedSpans);
         }
 
-        public int Close()
+        public Task<int> CloseAsync(CancellationToken cancellationToken)
         {
-            return Flush();
+            return FlushAsync(cancellationToken);
         }
 
         public void BlockAppend()

@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +20,9 @@ namespace Jaeger.Core.Tests.Reporters
     {
         private const int MaxQueueSize = 500;
         private readonly TimeSpan _flushInterval = TimeSpan.FromSeconds(1);
+        private readonly TimeSpan _closeTimeout = TimeSpan.FromSeconds(1);
 
+        private readonly ITestOutputHelper _output;
         private IReporter _reporter;
         private Tracer _tracer;
         private readonly InMemorySender _sender;
@@ -29,6 +32,8 @@ namespace Jaeger.Core.Tests.Reporters
 
         public RemoteReporterTests(ITestOutputHelper output)
         {
+            _output = output;
+
             _loggerFactory = new LoggerFactory();
             _loggerFactory.AddProvider(new XunitLoggerProvider(output, LogLevel.Information));
 
@@ -56,8 +61,8 @@ namespace Jaeger.Core.Tests.Reporters
                 .Build();
         }
 
-        [Fact(Skip = "Doesn't yet work properly")]
-        public void TestRemoteReporterReport()
+        [Fact]
+        public async Task TestRemoteReporterReport()
         {
             SetupTracer();
 
@@ -70,7 +75,7 @@ namespace Jaeger.Core.Tests.Reporters
             Stopwatch timer = Stopwatch.StartNew();
             while (_sender.GetReceived().Count == 0 && timer.ElapsedMilliseconds < timeout)
             {
-                Thread.Sleep(1);
+                await Task.Delay(1).ConfigureAwait(false);
             }
 
             List<ThriftSpan> received = _sender.GetReceived();
@@ -79,7 +84,7 @@ namespace Jaeger.Core.Tests.Reporters
         }
 
         [Fact]
-        public void TestRemoteReporterFlushesOnDispose()
+        public async Task TestRemoteReporterFlushesOnClose()
         {
             SetupTracer();
 
@@ -89,7 +94,9 @@ namespace Jaeger.Core.Tests.Reporters
                 Span span = (Span)_tracer.BuildSpan("raza").Start();
                 _reporter.Report(span);
             }
-            _reporter.Dispose();
+
+            var closeTimeout = new CancellationTokenSource(_closeTimeout).Token;
+            await _reporter.CloseAsync(closeTimeout).ConfigureAwait(false);
 
             Assert.Empty(_sender.GetAppended());
             Assert.Equal(numberOfSpans, _sender.GetFlushed().Count);
@@ -99,32 +106,27 @@ namespace Jaeger.Core.Tests.Reporters
             Assert.Equal(100, _metricsFactory.GetCounter("jaeger:traces", "sampled=y,state=started"));
         }
 
-        // Starts a number of threads. Each can fill the queue on its own, so they will exceed its
-        // capacity many times over
-        [Fact(Skip = "Doesn't yet work properly")]
+        [Fact(Skip = "This test is flaky and deadlocks from time to time. May a smarter person fix it.")]
         public void TestReportDoesntThrowWhenQueueFull()
         {
+            // Starts a number of threads. Each can fill the queue on its own, so they will exceed its
+            // capacity many times over
+
             SetupTracer();
 
             ConcurrentBag<Exception> exceptions = new ConcurrentBag<Exception>();
-
             int threadsCount = 10;
             Barrier barrier = new Barrier(threadsCount);
-            List<Task> tasks = new List<Task>();
+
+            var threads = new List<Thread>();
             for (int i = 0; i < threadsCount; i++)
             {
-                Task t = CreateSpanReportingTask(exceptions, barrier);
-                tasks.Add(t);
+                Thread t = CreateSpanReportingTask(exceptions, barrier);
+                threads.Add(t);
+                t.Start();
             }
 
-            try
-            {
-                Task.WaitAll(tasks.ToArray(), timeout: TimeSpan.FromSeconds(20));
-            }
-            catch (Exception ex)
-            {
-                exceptions.Add(ex);
-            }
+            threads.ForEach(t => t.Join());
 
             if (exceptions.Any())
             {
@@ -132,23 +134,30 @@ namespace Jaeger.Core.Tests.Reporters
             }
         }
 
-        private Task CreateSpanReportingTask(ConcurrentBag<Exception> exceptions, Barrier barrier)
+        private Thread CreateSpanReportingTask(ConcurrentBag<Exception> exceptions, Barrier barrier)
         {
-            return Task.Factory.StartNew(() =>
+            return new Thread(new ThreadStart(() =>
             {
-                for (int x = 0; x < MaxQueueSize; x++)
+                try
                 {
-                    try
+                    for (int x = 0; x < MaxQueueSize; x++)
                     {
-                        barrier.SignalAndWait(timeout: TimeSpan.FromSeconds(5));
-                        _reporter.Report(NewSpan());
-                    }
-                    catch (Exception ex)
-                    {
-                        exceptions.Add(ex);
+                        try
+                        {
+                            barrier.SignalAndWait();
+                            _reporter.Report(NewSpan());
+                        }
+                        catch (Exception ex)
+                        {
+                            exceptions.Add(ex);
+                        }
                     }
                 }
-            });
+                catch (Exception ex)
+                {
+                    exceptions.Add(ex);
+                }
+            }));
         }
 
         [Fact]
@@ -175,9 +184,10 @@ namespace Jaeger.Core.Tests.Reporters
         }
 
         [Fact]
-        public void TestCloseWhenQueueFull()
+        public async Task TestCloseWhenQueueFull()
         {
-            _reporter = new RemoteReporter(_sender, TimeSpan.FromHours(1), MaxQueueSize, _metrics, _loggerFactory);
+            TimeSpan neverFlushInterval = TimeSpan.FromHours(1);
+            _reporter = new RemoteReporter(_sender, neverFlushInterval, MaxQueueSize, _metrics, _loggerFactory);
 
             SetupTracer();
 
@@ -190,7 +200,8 @@ namespace Jaeger.Core.Tests.Reporters
                 _reporter.Report(NewSpan());
             }
 
-            _reporter.Dispose();
+            var closeTimeout = new CancellationTokenSource(_closeTimeout).Token;
+            await _reporter.CloseAsync(closeTimeout).ConfigureAwait(false);
 
             // expect no exception thrown
         }
@@ -232,33 +243,51 @@ namespace Jaeger.Core.Tests.Reporters
 
             Assert.Equal(0, _metricsFactory.GetGauge("jaeger:reporter_queue_length", ""));
 
-            RemoteReporter remoteReporter = (RemoteReporter)_reporter;
-            remoteReporter.Flush();
+            ((RemoteReporter)_reporter).Flush();
 
             Assert.True(_metricsFactory.GetGauge("jaeger:reporter_queue_length", "") > 0);
         }
 
-        [Fact(Skip = "Doesn't yet work properly")]
+        [Fact]
         public void TestFlushIsCalledOnSender()
         {
+            CountdownEvent countdownEvent = new CountdownEvent(1);
+
+            var sender = new FlushCallbackSender(countdownEvent);
+            _reporter = new RemoteReporter(sender, _flushInterval, MaxQueueSize, _metrics, _loggerFactory);
+
             SetupTracer();
 
             _tracer.BuildSpan("mySpan").Start().Finish();
 
-            // do sleep until automatic flush happens on 'reporter'
-            double timeout = _flushInterval.Add(TimeSpan.FromMilliseconds(20)).TotalMilliseconds;
-            Stopwatch timer = Stopwatch.StartNew();
-            while (_sender.FlushCallCount == 0 && timer.ElapsedMilliseconds < timeout)
-            {
-                Thread.Sleep(1);
-            }
+            bool flushFired = countdownEvent.Wait(TimeSpan.FromSeconds(1.5));
 
-            Assert.True(_sender.FlushCallCount > 0);
+            Assert.True(flushFired);
         }
 
         private Span NewSpan()
         {
             return (Span)_tracer.BuildSpan("x").Start();
+        }
+
+        private class FlushCallbackSender : InMemorySender
+        {
+            private readonly CountdownEvent _countdownEvent;
+
+            public FlushCallbackSender(CountdownEvent countdownEvent)
+            {
+                _countdownEvent = countdownEvent;
+            }
+
+            public override Task<int> FlushAsync(CancellationToken cancellationToken)
+            {
+                if (!_countdownEvent.IsSet)
+                {
+                    _countdownEvent.Signal();
+                }
+
+                return base.FlushAsync(cancellationToken);
+            }
         }
     }
 }
