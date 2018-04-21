@@ -15,6 +15,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
         public JaegerOptions()
         {
+            // Defaults
             ServiceName = Assembly.GetEntryAssembly().GetName().Name;
         }
     }
