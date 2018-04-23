@@ -31,7 +31,11 @@ namespace Jaeger.Example.WebApi
             // Adds the Jaeger tracer.
             services.AddJaeger(jaeger =>
             {
-                jaeger.UseConstSampler(sample: true);
+                // For demo purposes, we want to trace every request.
+                jaeger.WithSampler(new ConstSampler(sample: true));
+
+                // Tracer tags will be added to every span.
+                jaeger.WithTag("tracer.tag", "foo");
             });
         }
 

@@ -1,69 +1,49 @@
 ﻿using System;
+using System.Reflection;
+using Jaeger.Core;
 using Jaeger.Core.Baggage;
 using Jaeger.Core.Metrics;
 using Jaeger.Core.Reporters;
 using Jaeger.Core.Samplers;
 using Jaeger.Core.Util;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Util;
+using JaegerConfiguration = Jaeger.Core.Configuration;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     public static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddJaeger(this IServiceCollection services, Action<IJaegerBuilder> configure = null)
+        public static IServiceCollection AddJaeger(this IServiceCollection services, Action<Tracer.Builder> configure = null)
         {
             if (services == null)
                 throw new ArgumentNullException(nameof(services));
 
             services.AddSingleton<ITracer>(serviceProvider =>
             {
-                var options = serviceProvider.GetRequiredService<IOptions<JaegerOptions>>().Value;
+                var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
 
-                // The builder will use its default if a given service is null.
-                var tracerBuilder = new Jaeger.Core.Tracer.Builder(options.ServiceName)
-                    .WithBaggageRestrictionManager(serviceProvider.GetService<IBaggageRestrictionManager>())
-                    .WithClock(serviceProvider.GetService<IClock>())
-                    .WithLoggerFactory(serviceProvider.GetService<ILoggerFactory>())
-                    .WithMetricsFactory(serviceProvider.GetService<IMetricsFactory>())
-                    .WithReporter(serviceProvider.GetService<IReporter>())
-                    .WithSampler(serviceProvider.GetService<ISampler>())
-                    .WithScopeManager(serviceProvider.GetService<IScopeManager>());
-
-                if (options.ExpandExceptionLogs)
+                // The default JaegerConfiguration throws if there is no ServiceName in an environment variable
+                // so we do this separately and provide a default.
+                string serviceName = JaegerConfiguration.GetProperty(JaegerConfiguration.JaegerServiceName);
+                if (string.IsNullOrEmpty(serviceName))
                 {
-                    tracerBuilder.WithExpandExceptionLogs();
-                }
-                if (options.ZipkinSharedRpcSpan)
-                {
-                    tracerBuilder.WithZipkinSharedRpcSpan();
+                    serviceName = Assembly.GetEntryAssembly().GetName().Name;
                 }
 
-                foreach (var tag in options.Tags)
-                {
-                    if (tag.Value is bool boolValue)
-                    {
-                        tracerBuilder.WithTag(tag.Key, boolValue);
-                    }
-                    else if (tag.Value is double doubleValue)
-                    {
-                        tracerBuilder.WithTag(tag.Key, doubleValue);
-                    }
-                    else if (tag.Value is int intValue)
-                    {
-                        tracerBuilder.WithTag(tag.Key, intValue);
-                    }
-                    else if (tag.Value is string stringValue)
-                    {
-                        tracerBuilder.WithTag(tag.Key, stringValue);
-                    }
-                    else
-                    {
-                        tracerBuilder.WithTag(tag.Key, tag.Value.ToString());
-                    }
-                }
+                // Load everything from environment variables.
+                // This will use the default configuration if there's no environment variables.
+                var configuration = new JaegerConfiguration(serviceName, loggerFactory)
+                    .WithTracerTags(JaegerConfiguration.TracerTagsFromEnv(loggerFactory))
+                    .WithReporter(JaegerConfiguration.ReporterConfiguration.FromEnv(loggerFactory))
+                    .WithSampler(JaegerConfiguration.SamplerConfiguration.FromEnv(loggerFactory))
+                    .WithCodec(JaegerConfiguration.CodecConfiguration.FromEnv(loggerFactory));
+
+                var tracerBuilder = configuration.GetTracerBuilder();
+
+                // Allow user to change the builder in code.
+                configure?.Invoke(tracerBuilder);
 
                 ITracer tracer = tracerBuilder.Build();
 
