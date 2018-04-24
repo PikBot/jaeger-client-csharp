@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
 using Jaeger.Core.Samplers;
-using Jaeger.Core.Util;
-using NSubstitute;
 using Xunit;
 
 namespace Jaeger.Core.Tests.Samplers

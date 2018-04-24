@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Jaeger.Core.Samplers;
 using Xunit;
 

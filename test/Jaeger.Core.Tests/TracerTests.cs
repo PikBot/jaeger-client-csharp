@@ -1,13 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
-using Jaeger.Core;
 using Jaeger.Core.Metrics;
 using Jaeger.Core.Propagation;
 using Jaeger.Core.Reporters;
 using Jaeger.Core.Samplers;
 using NSubstitute;
-using NSubstitute.ReturnsExtensions;
 using OpenTracing;
 using OpenTracing.Propagation;
 using OpenTracing.Tag;
